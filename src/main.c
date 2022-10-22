@@ -195,51 +195,89 @@ int print_waypoint(SceExcpmgrExceptionContext *excp_ctx, SceExcpModuleInfo *pExc
 	return 0;
 }
 
+
+
+int print_psp2kerndmp_core(SceKernDmpHeader *pKernDmpHeader, SceKernDmpInfo *pKernDmpInfo, void *psp2kerndmp_data, int backtrace_number_0, int backtrace_number_1, int flag22){
+	return 0;
+}
+
 int print_psp2kerndmp(SceKernDmpHeader *pKernDmpHeader, SceKernDmpInfo *pKernDmpInfo, void *psp2kerndmp_data){
 
-	SceKernDmpBlobHeader *pHeader = (SceKernDmpBlobHeader *)(psp2kerndmp_data);
+	int backtrace_number_0, backtrace_number_1, flag22;
 
-	if(pHeader->size != sizeof(SceKernDmpBlobHeader)){
-		printf("%s: pHeader->size (0x%X) != sizeof(SceKernDmpBlobHeader)\n", __FUNCTION__, pHeader->size);
+	printf("\n");
+	printf("System software version: %X.%03X.%03X\n", pKernDmpInfo->fw_version >> 24, (pKernDmpInfo->fw_version >> 12) & 0xFFF, pKernDmpInfo->fw_version & 0xFFF);
+	printf("\n");
+
+	if(*(int *)(psp2kerndmp_data) == sizeof(SceKernDmpBlobHeader)){
+
+		SceKernDmpBlobHeader *pHeader = (SceKernDmpBlobHeader *)(psp2kerndmp_data);
+
+		backtrace_number_0 = pHeader->backtrace_number_0;
+		backtrace_number_1 = pHeader->backtrace_number_1;
+		flag22 = pHeader->unk_0x34;
+
+		printf("ProcessId:   0x%X\n", pHeader->processId);
+		printf("ThreadId:    0x%X\n", pHeader->threadId);
+		printf("CpuId:       %d\n", pHeader->cpuId);
+		printf("System time: %ld [usec]\n", pHeader->time);
+		printf("fileHash:    0x%08X\n", pHeader->fileHash);
+		printf("lineHash:    0x%08X\n", pHeader->lineHash);
+		printf("funcHash:    0x%08X\n", pHeader->funcHash);
+
+	}else if(*(int *)(psp2kerndmp_data) == sizeof(SceKernDmpBlobHeader40)){
+
+		SceKernDmpBlobHeader40 *pHeader = (SceKernDmpBlobHeader40 *)(psp2kerndmp_data);
+
+		backtrace_number_0 = pHeader->backtrace_number_0;
+		backtrace_number_1 = pHeader->backtrace_number_1;
+		flag22 = pHeader->unk_0x3C;
+
+		printf("ProcessId:   0x%X\n", pHeader->processId);
+		printf("ThreadId:    0x%X\n", pHeader->threadId);
+		printf("CpuId:       %d\n", pHeader->cpuId);
+		printf("System time: %ld [usec]\n", pHeader->time);
+		printf("fileHash:    0x%08X\n", pHeader->fileHash);
+		printf("lineHash:    0x%08X\n", pHeader->lineHash);
+		printf("funcHash:    0x%08X\n", pHeader->funcHash);
+
+	}else{
+
+		FILE *fd = fopen("./dump.bin", "wb");
+		fwrite(psp2kerndmp_data, pKernDmpInfo->enc_blob_size, 1, fd);
+		fclose(fd);
+
+		printf("%s: pHeader->size (0x%X) != sizeof(SceKernDmpBlobHeader)\n", __FUNCTION__, *(int *)(psp2kerndmp_data));
 		return -1;
 	}
 
 	printf("\n");
-	printf("System software version: %X.%03X.%03X\n", pKernDmpInfo->fw_version >> 24, (pKernDmpInfo->fw_version >> 12) & 0xFFF, pKernDmpInfo->fw_version & 0xFFF);
 
-	printf("\n");
-	printf("ProcessId:   0x%X\n", pHeader->processId);
-	printf("ThreadId:    0x%X\n", pHeader->threadId);
-	printf("CpuId:       %d\n", pHeader->cpuId);
-	printf("System time: %ld [usec]\n", pHeader->time);
-	printf("fileHash:    0x%08X\n", pHeader->fileHash);
-	printf("lineHash:    0x%08X\n", pHeader->lineHash);
-	printf("funcHash:    0x%08X\n", pHeader->funcHash);
-	printf("\n");
+	SceKernelBacktraceInternal *pBacktrace = (SceKernelBacktraceInternal *)(psp2kerndmp_data + *(int *)(psp2kerndmp_data));
 
-	SceKernelBacktraceInternal *pBacktrace = (SceKernelBacktraceInternal *)(&(pHeader[1]));
-
-	if(pHeader->backtrace_number_0 != 0){
+	if(backtrace_number_0 != 0){
 		printf("Kernel Backtrace\n");
 
-		for(int i=0;i<pHeader->backtrace_number_0;i++){
+		for(int i=0;i<backtrace_number_0;i++){
 			printf("\tpc:0x%08X sp: 0x%08X: base 0x%08X fp 0x%08X\n", pBacktrace[i].pc, pBacktrace[i].sp, pBacktrace[i].module_base, pBacktrace[i].fingerprint);
 		}
 	}
 
-	pBacktrace = (SceKernelBacktraceInternal *)(&(pBacktrace[pHeader->backtrace_number_0]));
+	pBacktrace = (SceKernelBacktraceInternal *)(&(pBacktrace[backtrace_number_0]));
 
-	if(pHeader->backtrace_number_1 != 0){
+	if(backtrace_number_1 != 0){
 		printf("User Backtrace\n");
 
-		for(int i=0;i<pHeader->backtrace_number_1;i++){
+		for(int i=0;i<backtrace_number_1;i++){
 			printf("\tpc:0x%08X sp: 0x%08X: base 0x%08X fp 0x%08X\n", pBacktrace[i].pc, pBacktrace[i].sp, pBacktrace[i].fingerprint, pBacktrace[i].module_base);
 		}
 	}
 
 	printf("\n");
 
-	SceExcpmgrExceptionContext *excp_ctx = (SceExcpmgrExceptionContext *)(&(pBacktrace[pHeader->backtrace_number_1]));
+	SceExcpmgrExceptionContext *excp_ctx = (SceExcpmgrExceptionContext *)(&(pBacktrace[backtrace_number_1]));
+
+	SceKernelThreadRegisterInfo *pThreadRegisterInfo = (SceKernelThreadRegisterInfo *)(excp_ctx);
 
 	char excp_type[0x10], fault_type[0x40];
 
@@ -258,9 +296,12 @@ int print_psp2kerndmp(SceKernDmpHeader *pKernDmpHeader, SceKernDmpInfo *pKernDmp
 		break;
 	}
 
+	int is_kernel_panic = 0;
+
 	switch(pKernDmpHeader->type){
 	case 1:
 		snprintf(fault_type, sizeof(fault_type), "Kernel Panic");
+		is_kernel_panic = 1;
 		break;
 	case 3:
 		snprintf(fault_type, sizeof(fault_type), "Kernel %s Exception", excp_type);
@@ -272,71 +313,73 @@ int print_psp2kerndmp(SceKernDmpHeader *pKernDmpHeader, SceKernDmpInfo *pKernDmp
 
 	printf("Fault type: %s\n", fault_type);
 
-	if(excp_ctx->unusedDC[5] == 0xFFFFFFFF){
-		printf("\tno module info\n");
-	}else{
-		printf("\tFingerprint 0x%08X module base 0x%08X\n", excp_ctx->unusedDC[5], excp_ctx->unusedDC[6]);
-	}
+	if(is_kernel_panic == 0){
+		if(excp_ctx->unusedDC[5] == 0xFFFFFFFF){
+			printf("\tno module info\n");
+		}else{
+			printf("\tFingerprint 0x%08X module base 0x%08X\n", excp_ctx->unusedDC[5], excp_ctx->unusedDC[6]);
+		}
 
-	printf("\n");
+		printf("\n");
 
-	SceExcpModuleInfo *pExcpModuleInfo = (SceExcpModuleInfo *)(&(excp_ctx[1]));
+		SceExcpModuleInfo *pExcpModuleInfo = (SceExcpModuleInfo *)(&(excp_ctx[1]));
 
-	print_waypoint(excp_ctx, pExcpModuleInfo);
+		print_waypoint(excp_ctx, pExcpModuleInfo);
+		pThreadRegisterInfo = (SceKernelThreadRegisterInfo *)(&(pExcpModuleInfo[0x40]));
 
-	printf("Fault register\n");
-	printf("r0-r3 : 0x%08X 0x%08X 0x%08X 0x%08X\n", excp_ctx->r0, excp_ctx->r1, excp_ctx->r2, excp_ctx->r3);
-	printf("r4-r7 : 0x%08X 0x%08X 0x%08X 0x%08X\n", excp_ctx->r4, excp_ctx->r5, excp_ctx->r6, excp_ctx->r7);
-	printf("r8-r11: 0x%08X 0x%08X 0x%08X 0x%08X\n", excp_ctx->r8, excp_ctx->r9, excp_ctx->r10, excp_ctx->r11);
-	printf("ip    : 0x%08X\n", excp_ctx->r12);
-	printf("sp    : 0x%08X\n", excp_ctx->sp);
-	printf("lr    : 0x%08X\n", excp_ctx->lr);
-	printf("pc    : 0x%08X\n", excp_ctx->address_of_faulting_instruction);
-	printf("SPSR  : 0x%08X\n", excp_ctx->SPSR);
+		printf("Fault register\n");
+		printf("r0-r3 : 0x%08X 0x%08X 0x%08X 0x%08X\n", excp_ctx->r0, excp_ctx->r1, excp_ctx->r2, excp_ctx->r3);
+		printf("r4-r7 : 0x%08X 0x%08X 0x%08X 0x%08X\n", excp_ctx->r4, excp_ctx->r5, excp_ctx->r6, excp_ctx->r7);
+		printf("r8-r11: 0x%08X 0x%08X 0x%08X 0x%08X\n", excp_ctx->r8, excp_ctx->r9, excp_ctx->r10, excp_ctx->r11);
+		printf("ip    : 0x%08X\n", excp_ctx->r12);
+		printf("sp    : 0x%08X\n", excp_ctx->sp);
+		printf("lr    : 0x%08X\n", excp_ctx->lr);
+		printf("pc    : 0x%08X\n", excp_ctx->address_of_faulting_instruction);
+		printf("SPSR  : 0x%08X\n", excp_ctx->SPSR);
 
-	for(int i=0;i<0x20;i+=4){
-		printf(
-			"d%-2d-d%-2d : 0x%016lX 0x%016lX 0x%016lX 0x%016lX\n",
-			i + 0, i + 3,
-			excp_ctx->VFP_registers[i + 0x0],
-			excp_ctx->VFP_registers[i + 0x1],
-			excp_ctx->VFP_registers[i + 0x2],
-			excp_ctx->VFP_registers[i + 0x3]
-		);
-	}
-
-	printf("FPEXC : 0x%08X\n", excp_ctx->FPEXC);
-	printf("FPSCR : 0x%08X\n", excp_ctx->FPSCR);
-	printf("\n");
-	printf("Context ID : 0x%08X\n", excp_ctx->CONTEXTIDR);
-	printf("DACR       : 0x%08X\n", excp_ctx->DACR);
-	printf("TTBR1      : 0x%08X\n", excp_ctx->TTBR1);
-	printf("TPIDRURW   : 0x%08X\n", excp_ctx->TPIDRURW);
-	printf("TPIDRURO   : 0x%08X\n", excp_ctx->TPIDRURO);
-	printf("TPIDRPRW   : 0x%08X\n", excp_ctx->TPIDRPRW);
-
-	uint32_t DFSR = excp_ctx->DFSR;
-	printf("DFSR           0x%08X [ %s ]\n", DFSR, DFSR_string_list[(DFSR & 0xF) | ((DFSR & 0x400) >> 0x6)]);
-	printf("DFAR           0x%08X [ %s ]\n", excp_ctx->DFAR, ((DFSR & 0x800) == 0) ? "Read" : "Write");
-
-	if(excp_ctx->IFSR != 0){ // Provisional, need more RE
-
-		uint32_t IFSR = excp_ctx->IFSR;
-		printf("IFSR           : 0x%08X [ %s ]\n", IFSR, DFSR_string_list[(IFSR & 0xF) | ((IFSR & 0x400) >> 0x6)]);
-
-		if((IFSR & 0x40F) == 2){
+		for(int i=0;i<0x20;i+=4){
 			printf(
-				"DBGDSCR        : 0x%08X [ %s ]\n",
-				excp_ctx->DBGSCRext,
-				dbg_event_string_list[(excp_ctx->DBGSCRext >> 2) & 0xF]
+				"d%-2d-d%-2d : 0x%016lX 0x%016lX 0x%016lX 0x%016lX\n",
+				i + 0, i + 3,
+				excp_ctx->VFP_registers[i + 0x0],
+				excp_ctx->VFP_registers[i + 0x1],
+				excp_ctx->VFP_registers[i + 0x2],
+				excp_ctx->VFP_registers[i + 0x3]
 			);
+		}
+
+		printf("FPEXC : 0x%08X\n", excp_ctx->FPEXC);
+		printf("FPSCR : 0x%08X\n", excp_ctx->FPSCR);
+		printf("\n");
+		printf("Context ID : 0x%08X\n", excp_ctx->CONTEXTIDR);
+		printf("DACR       : 0x%08X\n", excp_ctx->DACR);
+		printf("TTBR1      : 0x%08X\n", excp_ctx->TTBR1);
+		printf("TPIDRURW   : 0x%08X\n", excp_ctx->TPIDRURW);
+		printf("TPIDRURO   : 0x%08X\n", excp_ctx->TPIDRURO);
+		printf("TPIDRPRW   : 0x%08X\n", excp_ctx->TPIDRPRW);
+
+		uint32_t DFSR = excp_ctx->DFSR;
+		printf("DFSR           0x%08X [ %s ]\n", DFSR, DFSR_string_list[(DFSR & 0xF) | ((DFSR & 0x400) >> 0x6)]);
+		printf("DFAR           0x%08X [ %s ]\n", excp_ctx->DFAR, ((DFSR & 0x800) == 0) ? "Read" : "Write");
+
+		if(excp_ctx->IFSR != 0){ // Provisional, need more RE
+
+			uint32_t IFSR = excp_ctx->IFSR;
+			printf("IFSR           : 0x%08X [ %s ]\n", IFSR, DFSR_string_list[(IFSR & 0xF) | ((IFSR & 0x400) >> 0x6)]);
+
+			if((IFSR & 0x40F) == 2){
+				printf(
+					"DBGDSCR        : 0x%08X [ %s ]\n",
+					excp_ctx->DBGSCRext,
+					dbg_event_string_list[(excp_ctx->DBGSCRext >> 2) & 0xF]
+				);
+			}
 		}
 	}
 
 	printf("\n");
 
-	if(pHeader->unk_0x34 == 0x22){
-		SceKernelThreadRegisterInfo *pThreadRegisterInfo = (SceKernelThreadRegisterInfo *)(&(pExcpModuleInfo[0x40]));
+	if(flag22 == 0x22){
 
 		SceExcpModuleInfo2 *pExcpModuleInfo2 = (SceExcpModuleInfo2 *)(&(pThreadRegisterInfo[1]));
 

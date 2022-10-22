@@ -46,6 +46,24 @@ typedef struct SceKernDmpBlobHeader { // size is 0x38-bytes
 	SceSize unk_0x34;
 } SceKernDmpBlobHeader;
 
+typedef struct SceKernDmpBlobHeader40 { // size is 0x40-bytes
+	int size;
+	SceUID processId;
+	SceUID threadId;
+	SceUInt32 cpuId;
+	SceUInt64 time;
+	SceUInt32 fileHash;
+	SceUInt32 lineHash;
+	SceUInt32 funcHash;
+	SceUID uid_0x24;
+	SceUInt32 unk_0x28;
+	SceSize backtrace_number_0;
+	SceSize backtrace_number_1;
+	SceSize backtrace_elem_size;
+	SceSize some_size;
+	SceSize unk_0x3C;
+} SceKernDmpBlobHeader40;
+
 typedef struct SceKernelBacktraceInternal { // size is 0x10-bytes
 	SceUIntPtr sp;
 	SceUIntPtr pc;
